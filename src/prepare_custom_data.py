@@ -46,16 +46,20 @@ def load_daisee_labels(labels_dir: Path) -> dict:
                     }
     return mapping
 
-def extract_dir_images(source_dir: Path, output_dir: Path, state_str: str) -> list[dict]:
+def extract_dir_images(source_dir: Path, output_dir: Path, state_str: str, max_images: int = 0) -> list[dict]:
     if not source_dir.exists():
         print(f"Directory not found: {source_dir}")
         return []
 
     print(f"Extracting valid images from {source_dir}...")
     images = collect_images(source_dir)
+    random.shuffle(images) # Shuffle so we get a random subset if capping
     valid_records = []
     
     for idx, img_path in enumerate(images):
+        if max_images > 0 and len(valid_records) >= max_images:
+            break
+            
         if verify_image(img_path):
             filename = f"oace_{state_str}_{idx:06d}{img_path.suffix.lower()}"
             target = output_dir / filename
@@ -183,7 +187,8 @@ def main() -> None:
     parser.add_argument("--daisee-root", type=Path, default=Path(r"D:\AI\Project\Dataset\DAiSEE\DAiSEE\DataSet"))
     parser.add_argument("--daisee-labels", type=Path, default=Path(r"D:\AI\Project\Dataset\DAiSEE\DAiSEE\Labels"))
     parser.add_argument("--processed-out", type=Path, default=Path("data/processed"))
-    parser.add_argument("--max-daisee-videos", type=int, default=500)
+    parser.add_argument("--max-oace-images", type=int, default=0)
+    parser.add_argument("--max-daisee-videos", type=int, default=1000)
     parser.add_argument("--train-ratio", type=float, default=0.7)
     parser.add_argument("--val-ratio", type=float, default=0.15)
     parser.add_argument("--seed", type=int, default=42)
@@ -197,8 +202,8 @@ def main() -> None:
     images_dir.mkdir(parents=True, exist_ok=True)
     
     # 1. Collect all images
-    closed_records = extract_dir_images(args.oace_root / "close", images_dir, "closed")
-    open_oace_records = extract_dir_images(args.oace_root / "open", images_dir, "open")
+    closed_records = extract_dir_images(args.oace_root / "close", images_dir, "closed", args.max_oace_images)
+    open_oace_records = extract_dir_images(args.oace_root / "open", images_dir, "open", args.max_oace_images)
     open_daisee_records = process_daisee_videos(args.daisee_root, args.daisee_labels, images_dir, args.max_daisee_videos)
     
     # 2. Balance classes: eyes_open must equal eyes_closed perfectly

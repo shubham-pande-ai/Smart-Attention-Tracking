@@ -499,18 +499,15 @@ class WebHandler(BaseHTTPRequestHandler):
               <div><span id="confidence">0%</span><small>Confidence</small></div>
             </div>
             
-            <h3 style="margin-top:20px;margin-bottom:8px;font-size:14px;color:var(--muted)">High-Level Analysis</h3>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
-              <div class="premium-card"><span id="happy" class="big-value">-</span><small>Is Happy?</small></div>
-              <div class="premium-card"><span id="understanding" class="big-value">-</span><small>Is Understanding?</small></div>
+            <h3 style="margin-top:20px;margin-bottom:8px;font-size:14px;color:var(--muted)">Live Emotion Analysis</h3>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px;">
+              <div class="premium-card"><span id="boring" class="med-value">-</span><small>Boring</small></div>
+              <div class="premium-card"><span id="interesting" class="med-value">-</span><small>Interesting</small></div>
+              <div class="premium-card"><span id="frustrated" class="med-value">-</span><small>Frustrated</small></div>
             </div>
-
-            <h3 style="margin-bottom:8px;font-size:14px;color:var(--muted)">Raw DAiSEE Emotions</h3>
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
-              <div class="premium-card"><span id="boredom" class="med-value">-</span><small>Boredom</small></div>
-              <div class="premium-card"><span id="engagement" class="med-value">-</span><small>Engaged</small></div>
-              <div class="premium-card"><span id="confusion" class="med-value">-</span><small>Confused</small></div>
-              <div class="premium-card"><span id="frustration" class="med-value">-</span><small>Frustrated</small></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+              <div class="premium-card"><span id="sleeping" class="big-value">-</span><small>Sleeping</small></div>
+              <div class="premium-card"><span id="noface" class="big-value">-</span><small>No Face</small></div>
             </div>
             <p id="alert" class="notice">Soft alert: waiting</p>
             <div class="demo">
@@ -895,20 +892,16 @@ function setResult(d){
     $('confidence').textContent=d.confidence+'%';
     $('alert').textContent='Soft alert: '+d.alert;
     if(d.emotions){
-        const isUnderstanding = (d.emotions.engagement >= 2 && d.emotions.confusion <= 1);
-        const isHappy = (d.emotions.frustration === 0 && d.emotions.boredom <= 1);
-        
-        $('understanding').textContent = isUnderstanding ? 'Yes 🧠' : 'No ❌';
-        $('understanding').style.color = isUnderstanding ? '#10b981' : '#ef4444';
-        
-        $('happy').textContent = isHappy ? 'Yes 😊' : 'No 😐';
-        $('happy').style.color = isHappy ? '#10b981' : '#94a3b8';
-
         const lvls=['None','Low','High','Max'];
-        $('boredom').textContent=lvls[d.emotions.boredom]||'-';
-        $('engagement').textContent=lvls[d.emotions.engagement]||'-';
-        $('confusion').textContent=lvls[d.emotions.confusion]||'-';
-        $('frustration').textContent=lvls[d.emotions.frustration]||'-';
+        $('boring').textContent=lvls[d.emotions.boredom]||'-';
+        $('interesting').textContent=lvls[d.emotions.engagement]||'-';
+        $('frustrated').textContent=lvls[d.emotions.frustration]||'-';
+        
+        $('sleeping').textContent = (d.state === 'eyes_closed') ? 'Yes 💤' : 'No 👁️';
+        $('sleeping').style.color = (d.state === 'eyes_closed') ? '#ef4444' : '#10b981';
+        
+        $('noface').textContent = (d.state === 'no_face') ? 'Yes ❌' : 'No 👤';
+        $('noface').style.color = (d.state === 'no_face') ? '#ef4444' : '#10b981';
     }
 }
 async function start(){if(!$('consent').checked){alert('Consent is required before starting.');return;}let started=await post('/api/session/start',{class_id:$('classId').value,session_name:$('sessionName').value});if(!started.ok)return;sessionId=started.session_id;try{video=$('video');video.srcObject=await navigator.mediaDevices.getUserMedia({video:true,audio:false});}catch(e){$('alert').textContent='Webcam unavailable. Demo signal controls are active.';}timer=setInterval(sendFrame,1000);}

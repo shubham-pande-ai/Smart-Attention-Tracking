@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms, models
 from tqdm import tqdm
 from PIL import Image
+import matplotlib.pyplot as plt
 
 IMG_SIZE = (160, 160)
 
@@ -154,8 +155,8 @@ def main() -> None:
     train_dataset = MultiTaskDataset(csv_file, img_dir, "train", transform=train_transform)
     val_dataset = MultiTaskDataset(csv_file, img_dir, "val", transform=val_transform)
 
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, pin_memory=True, num_workers=0)
-    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=0)
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, pin_memory=True, num_workers=4)
+    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=4)
 
     model = MultiHeadEfficientNet().to(device)
     optimizer = optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=1e-4)
@@ -166,6 +167,11 @@ def main() -> None:
     args.model_out.parent.mkdir(parents=True, exist_ok=True)
     best_val_loss = float('inf')
     epochs_without_improvement = 0
+    
+    # History for plotting
+    history_train_loss = []
+    history_val_loss = []
+    history_eye_acc = []
 
     for epoch in range(args.epochs):
         model.train()
@@ -226,10 +232,18 @@ def main() -> None:
         print(f"Epoch {epoch+1}/{args.epochs} | Train Loss: {running_loss/total_samples:.4f} | Val Loss: {v_loss:.4f} | LR: {scheduler.get_last_lr()[0]:.6f}")
         
         acc_strs = []
+        eye_acc_val = 0.0
         for k, (c, t) in total_accs.items():
             if t > 0:
-                acc_strs.append(f"{k}: {c/t:.2f}")
+                acc = c/t
+                acc_strs.append(f"{k}: {acc:.2f}")
+                if k == "eye_state":
+                    eye_acc_val = acc
         print("  Accuracies: " + ", ".join(acc_strs))
+        
+        history_train_loss.append(running_loss/total_samples)
+        history_val_loss.append(v_loss)
+        history_eye_acc.append(eye_acc_val)
         
         if v_loss < best_val_loss:
             best_val_loss = v_loss
@@ -244,6 +258,26 @@ def main() -> None:
         if epochs_without_improvement >= args.patience:
             print(f"Early stopping triggered after {epoch+1} epochs!")
             break
+
+    # Save training plot
+    plt.figure(figsize=(10, 5))
+    plt.subplot(1, 2, 1)
+    plt.plot(history_train_loss, label='Train Loss')
+    plt.plot(history_val_loss, label='Val Loss')
+    plt.title('Loss over Epochs')
+    plt.xlabel('Epochs')
+    plt.legend()
+    
+    plt.subplot(1, 2, 2)
+    plt.plot(history_eye_acc, label='Eye State Accuracy', color='green')
+    plt.title('Validation Accuracy')
+    plt.xlabel('Epochs')
+    plt.legend()
+    
+    plt.tight_layout()
+    plot_path = args.model_out.parent / "training_results.png"
+    plt.savefig(str(plot_path))
+    print(f"\nSaved training accuracy/loss plot to {plot_path}")
 
 if __name__ == "__main__":
     main()
