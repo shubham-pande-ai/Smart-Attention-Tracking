@@ -1,29 +1,8 @@
-# Virtual Environments
 .venv/
-.venv-py311/
-venv/
-env/
-
-# Python Cache
 __pycache__/
-*.py[cod]
-*$py.class
+*.pyc
+.env
 
-# Models and Large Datasets
-data/
-models/
-*.pt
-*.keras
-
-# Database Files
-*.sqlite3
-*.db
-
-# IDEs and Tools
-.vscode/
-.idea/
-.gemini/
-
-# OS Files
-.DS_Store
-Thumbs.db
+# Ignore dataset contents but keep the folder
+data/*
+!data/.gitkeep
