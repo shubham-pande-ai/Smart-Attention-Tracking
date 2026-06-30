@@ -25,15 +25,21 @@ class AttentionEngine:
         self.load_model()
 
     def load_model(self) -> None:
+        print(f"[DEBUG] Loading model from: {self.model_path}")
+        print(f"[DEBUG] Model path exists: {self.model_path.exists()}")
         if not self.model_path.exists():
             self.model_error = f"Model not found: {self.model_path}"
+            print(f"[ERROR] {self.model_error}")
             return
         try:
-            self.model = torch.jit.load(str(self.model_path))
+            print(f"[DEBUG] Attempting to load PyTorch model...")
+            self.model = torch.jit.load(str(self.model_path), map_location="cpu")
             self.model.eval()
             self.model_error = ""
+            print(f"[SUCCESS] Model loaded successfully!")
         except Exception as exc:
             self.model_error = str(exc)
+            print(f"[ERROR] Failed to load model: {self.model_error}")
 
     def crop_eye_region(self, frame: np.ndarray) -> tuple[np.ndarray | None, tuple[int, int, int, int] | None]:
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -95,9 +101,10 @@ class AttentionEngine:
         emotions = {}
         for em in ["boredom", "engagement", "confusion", "frustration"]:
             probs_em = torch.nn.functional.softmax(outputs[em][0], dim=0).cpu().numpy()
-            # The model outputs a class from 0 to 3. Scale it to 0-100% for the dashboard!
-            raw_class = float(np.argmax(probs_em))
-            emotions[em] = round(raw_class * (100.0 / 3.0), 2)
+            # Use weighted average of class indices (0-3) instead of just argmax
+            # This gives continuous 0-100 scale for better chart visualization
+            weighted_class = float(np.dot(np.arange(4), probs_em))
+            emotions[em] = round(weighted_class * (100.0 / 3.0), 2)
             
         if label == "eyes_closed":
             emotions["boredom"] = 100.0

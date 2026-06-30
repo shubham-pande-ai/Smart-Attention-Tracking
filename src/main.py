@@ -17,7 +17,8 @@ app = FastAPI(title="Smart Attention Tracker")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 db = Database()
-engine = AttentionEngine(model_path=Path("models/attention_cnn.pt"))
+model_path = Path(__file__).parent.parent / "models" / "attention_cnn.pt"
+engine = AttentionEngine(model_path=model_path)
 
 # --- STATE MANAGEMENT ---
 class ConnectionManager:
