@@ -1,94 +1,80 @@
-# Real-Time Multi-Task Attention & Emotion Tracker
+# Smart Attention & Emotion Tracker (Edge AI)
 
-A sophisticated self-monitoring and classroom analytics tool powered by **PyTorch** and **EfficientNet-V2-S**. This application uses a webcam to perform real-time, multi-task facial analysis. 
+An advanced, privacy-preserving, Real-Time Edge AI system designed to monitor student engagement in remote educational environments. This system uses a lightweight PyTorch CNN (Multi-Task EfficientNet-V2) to run deep learning inference directly on the local machine. 
 
-It simultaneously tracks:
-- **Eye State** (Sleeping / Awake)
-- **Boredom**
-- **Engagement** (Interesting)
-- **Frustration**
-- **Confusion**
-
-The system features a beautiful, responsive dark-mode dashboard (with premium glassmorphism UI) for both students and teachers, and includes automated alerts (e.g., triggering a "SLEEPING DETECTED" alert if eyes are closed for more than 2 minutes).
+It provides an ultra-low latency WebSocket pipeline that routes live analytics and video feeds securely between Students, Teachers, and System Admins.
 
 ---
 
-## 🚀 Features
+## 🏗️ Architecture & Technology Stack
 
-- **True Multi-Task Learning**: The neural network uses a single EfficientNet-V2-S backbone that splits into 5 separate classification heads, allowing it to predict eye state and 4 distinct emotions simultaneously in real-time.
-- **Robust Eye Tracking**: Trained with heavy data augmentations (RandomCrop, ColorJitter, Rotation) to accurately detect closed eyes even if the user's face is slightly misaligned or tilted.
-- **Automated Data Pipeline**: Seamlessly merges and balances the DAiSEE (video) and OACE (image) datasets to ensure zero class bias.
-- **Performance Plotting**: Automatically generates `matplotlib` accuracy and loss graphs after training.
-- **Web Dashboards**: Includes both a Student Portal (live tracking) and an Admin Portal (monitoring multiple students).
+The project has been completely overhauled from a basic monolithic script into a highly scalable **3-Tier FastAPI Architecture**:
+
+### 1. Backend API & WebSockets (Python / FastAPI)
+- **FastAPI:** High-performance async server handling HTTP routes and WebSocket connections.
+- **Uvicorn:** Lightning-fast ASGI server for production-grade deployment.
+- **OpenPyXL:** Pure-Python Excel parser (bypassing strict OS DLL blocks) used for automated Admin account generation.
+
+### 2. Edge AI Inference (PyTorch)
+- **PyTorch & Torchvision:** Powers the `MultiHeadEfficientNet` for Multi-Task Learning.
+- **OpenCV (cv2):** Decodes raw Base64 video frames streamed from the student's browser.
+- **Normalized Outputs:** The raw neural network emotion classes are mathematically scaled to an intuitive **0-100%** metric for all dashboards.
+- **Privacy-First:** The AI runs locally. Video frames are analyzed instantly and discarded; only lightweight text-based telemetry is stored.
+
+### 3. Database Layer (SQLite -> Ready for PyMongo)
+- **SQLite:** Currently used for localized storage.
+- **Abstracted Design:** The `database.py` layer is designed to return standard Python dictionaries. This means you can drop in PyMongo or PostgreSQL in the future without changing a single line of the main server logic!
+- **Data Compression Algorithm:** The server automatically computes 1-Minute Rolling Averages of student emotions before writing to the database, saving 98% of potential storage space!
+
+### 4. Frontend Portals (HTML5, JS, Chart.js)
+Vanilla, zero-dependency HTML/JS/CSS served directly by FastAPI.
+- **Admin Hub:** Features a massive `Chart.js` canvas for plotting live continuous class averages. It also includes an advanced SQL reporting engine that generates tables for Daily, Weekly, and Monthly historical analytics.
+- **Teacher Dashboard:** Real-time, dynamic CSS Grid that automatically spawns a dedicated "Analytics Card" for every single student that joins the class. Clicking a specific student opens a low-latency WebSockets Video Modal so the teacher can monitor them privately.
+- **Student Portal:** A strict waiting lobby that automatically hooks into the webcam ONLY when the Teacher globally clicks "Start Session".
 
 ---
 
-## 🛠️ Setup & Installation
+## 🚀 Installation & Setup
 
-### 1. Environment Configuration
-This project is built on **Python 3.11** (Windows). 
-Create a virtual environment and install the required dependencies:
+1. **Clone the Repository** and open the folder in your terminal.
+2. **Activate the Virtual Environment**:
+   ```powershell
+   .\.venv\Scripts\activate
+   ```
+3. **Install Dependencies**:
+   ```powershell
+   pip install fastapi uvicorn websockets openpyxl opencv-python torch torchvision
+   ```
+   *(Note: pandas has been explicitly removed from requirements to bypass Windows AppLocker restrictions).*
+
+---
+
+## 💻 Running the Server
+
+Because this uses an ASGI asynchronous architecture, you **do not** run the python files directly. Start the server using Uvicorn:
 
 ```powershell
-py -3.11 -m venv .venv
-.\.venv\Scripts\activate
-pip install -r requirements.txt
-pip install matplotlib
+uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 ```
-
-*(Note: Ensure your `.venv` is strictly named `.venv` to align with the `.gitignore` rules).*
 
 ---
 
-## 📊 Dataset Preparation
+## 🧪 Usage & Testing Guide
 
-The AI is trained on a combination of the **DAiSEE** dataset (for complex classroom emotions) and the **OACE** dataset (for highly accurate open/closed eye states).
+Once the server is running, navigate to `http://localhost:8000`. We have injected 3 default accounts so you can test the system immediately:
 
-Ensure your data is located here (or update the paths in the script):
-- OACE Images: `C:\Users\HP\OneDrive\Desktop\archive (1)\OACE`
-- DAiSEE Videos: `D:\AI\Project\Dataset\DAiSEE\DAiSEE\DataSet`
+### 1. The Admin Portal (`admin` / `admin`)
+- **Excel Registration:** Upload an Excel file containing columns for `Name`, `PRN`, and `Email`. The server will instantly generate secure passwords and download the results as a new Excel file.
+- **Historical Reports:** Select Daily, Weekly, or Monthly to see the aggregated history of all student sessions!
+- **Live Class Graph:** Watch the Chart.js line graph continuously plot class averages while a session is active. It maps the neural network's classifications to a beautiful 0-100% scale.
 
-### Build the Dataset
-Run the data preparation script to extract frames from up to 1000 DAiSEE videos and perfectly balance them with the OACE images:
+### 2. The Teacher Portal (`teacher` / `teacher`)
+- Click **Start Live Session** to wake up the Student portals.
+- The dynamic Grid will instantly spawn a tracking card for every student in the session.
+- **Live Video Modal:** Click on any student's name card to instantly intercept their live webcam stream!
+- **Automated Sleeping Alerts:** If a student closes their eyes for more than 120 continuous seconds, a massive red alert banner will flash on your screen.
 
-```powershell
-.\.venv\Scripts\python src\prepare_custom_data.py
-```
-*This will automatically split the data into 70% Training, 15% Validation, and 15% Testing.*
-
----
-
-## 🧠 Training (Fine-Tuning)
-
-Instead of training from scratch, the model utilizes **True Fine-Tuning**. The base feature extraction layers of the EfficientNet-V2 are frozen, and only the final few blocks and custom emotion heads are trained. This prevents overfitting and trains significantly faster.
-
-To train the model (utilizing `num_workers=4` for fast data loading and a batch size of 128 to maximize GPU VRAM):
-
-```powershell
-.\.venv\Scripts\python src\train.py --batch-size 128 --learning-rate 0.0005 --epochs 30
-```
-
-When training completes (or triggers early stopping), the model will be saved to `models/attention_cnn.pt` and a visual performance graph will be saved to `models/training_results.png`.
-
----
-
-## 🌐 Running the Web Application
-
-Start the local web server to access the dashboards:
-
-```powershell
-.\.venv\Scripts\python src\web_app.py
-```
-
-- **User Portal**: [http://127.0.0.1:8010](http://127.0.0.1:8010)
-- **Admin Portal**: [http://127.0.0.1:8020](http://127.0.0.1:8020)
-
-### UI Metrics
-The dashboard will display real-time readouts for:
-- **Boring** (None / Low / High / Max)
-- **Interesting** (None / Low / High / Max)
-- **Frustrated** (None / Low / High / Max)
-- **Sleeping** (Yes / No)
-- **No Face** (Yes / No)
-
-*Press `Ctrl+C` in the terminal to stop the server.*
+### 3. The Student Portal (`student1` / `student`)
+- Log in to be placed in the "Waiting Lobby".
+- Once the Teacher starts the session, the browser will request webcam access.
+- Analytics are transmitted at 1 frame-per-second to conserve massive amounts of bandwidth.
